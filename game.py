@@ -1,5 +1,6 @@
 import random
 from enum import Enum
+from typing import List
 
 import numpy as np
 
@@ -29,6 +30,30 @@ def add_random_tile(board):
         return  # No empty cells available
     cell_index = random.choice(empty)
     board[cell_index[0], cell_index[1]] = value
+
+
+def get_legal_moves(board: np.ndarray) -> List[Move]:
+    """
+    Get all legal moves for the current board state without actually executing them.
+
+    Args:
+        board: Current game board as numpy array
+
+    Returns:
+        List of legal Move enum values
+    """
+    legal_moves = []
+
+    for move_direction in Move:
+        try:
+            # Try the move to see if it's legal
+            test_board = board.copy()
+            move(test_board, move_direction)
+            legal_moves.append(move_direction)
+        except IllegalMove:
+            continue
+
+    return legal_moves
 
 
 def move(board, move: Move):
