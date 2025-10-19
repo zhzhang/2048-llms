@@ -56,7 +56,7 @@ def get_legal_moves(board: np.ndarray) -> List[Move]:
     return legal_moves
 
 
-def move(board, move: Move):
+def move(board, move: Move, add_tile: bool = True):
     # Create a copy of the board to avoid modifying the original
     working_board = board.copy()
 
@@ -104,7 +104,8 @@ def move(board, move: Move):
     if (board == new_board).all():
         raise IllegalMove()
 
-    add_random_tile(new_board)
+    if add_tile:
+        add_random_tile(new_board)
     return new_board
 
 

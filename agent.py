@@ -45,6 +45,11 @@ class GameAgent:
         if not available_moves:
             return None, "Game over - no moves available"  # Game over
 
+        post_move_state_str = ""
+        for available_move in available_moves:
+            new_board = move(self.board, available_move, add_tile=False)
+            post_move_state_str += f"Board after {available_move.name} move:\n{self.board_to_string(new_board)}\n"
+
         # Prepare the prompt for the AI
         board_str = self.board_to_string(self.board)
 
@@ -54,6 +59,9 @@ After a valid move, a new tile will be randomly generated in an empty cell. 90% 
 
 Current board state (move #{self.move_count + 1}, highest tile: {np.max(self.board)}):
 {board_str}
+
+Here are the possible board states after each move, before the random new tile is added:
+{post_move_state_str}
 
 Available moves: {[move.name for move in available_moves]}
 
