@@ -3,7 +3,7 @@ import time
 from typing import Optional
 from anthropic import Anthropic
 import numpy as np
-from game import Move, move, print_board, init_board, IllegalMove
+from game import Move, move, print_board, init_board, IllegalMove, get_legal_moves
 
 
 class GameAgent:
@@ -18,13 +18,11 @@ class GameAgent:
         self.client = Anthropic(api_key=self.api_key)
         self.board = None
         self.move_count = 0
-        self.score = 0
 
     def reset_game(self):
         """Reset the game to initial state."""
         self.board = init_board()
         self.move_count = 0
-        self.score = 0
         return self.board
 
     def board_to_string(self, board: np.ndarray) -> str:
@@ -38,55 +36,26 @@ class GameAgent:
             board_str += " ".join(f"{cell:>4}" for cell in row) + "\n"
         return board_str
 
-    def calculate_score(self, board: np.ndarray) -> int:
-        """Calculate the current score based on tile values."""
-        return int(np.sum(board))
-
-    def get_available_moves(self, board: np.ndarray) -> list[Move]:
-        """Get all available legal moves for the current board state."""
-        available_moves = []
-        for move_direction in Move:
-            try:
-                # Try the move to see if it's legal
-                test_board = board.copy()
-                move(test_board, move_direction)
-                available_moves.append(move_direction)
-            except IllegalMove:
-                continue
-        return available_moves
-
     def get_next_move(self) -> tuple[Optional[Move], str]:
         """Get the next move from the AI agent along with reasoning."""
         if self.board is None:
             return None, ""
 
-        available_moves = self.get_available_moves(self.board)
+        available_moves = get_legal_moves(self.board)
         if not available_moves:
             return None, "Game over - no moves available"  # Game over
 
         # Prepare the prompt for the AI
         board_str = self.board_to_string(self.board)
-        current_score = self.calculate_score(self.board)
 
-        prompt = f"""You are playing the game 2048. Your goal is to merge tiles to reach the 2048 tile and achieve the highest possible score.
+        prompt = f"""You are playing the game 2048. Your goal is to merge tiles to reach the 2048 tile and achieve the highest possible highest tile.
+Valid moves are ones that result in at least one tile changing its position, or at least one merge occurring between two tiles of the same value.
+After a valid move, a new tile will be randomly generated in an empty cell. 90% of the time the new tile will be a 2, 10% of the time it will be a 4.
 
-Current board state (move #{self.move_count + 1}, score: {current_score}):
+Current board state (move #{self.move_count + 1}, highest tile: {np.max(self.board)}):
 {board_str}
 
 Available moves: {[move.name for move in available_moves]}
-
-In 2048, the best strategy typically involves:
-1. Keeping the highest value tile in a corner (usually bottom-right)
-2. Building a snake-like pattern from that corner
-3. Avoiding random moves that break the pattern
-4. Prioritizing moves that merge tiles and create space
-
-Please analyze the current board and choose the best move from the available options. Consider:
-- Which move will create the most merges?
-- Which move maintains or improves the board structure?
-- Which move opens up the most opportunities for future moves?
-When considering each move, on a new line print your expectation for what the board will look like after the move, excluding the new randomly generated tile after the move.
-
 
 First explain your reasoning, then provide your move choice.
 
@@ -100,7 +69,7 @@ MOVE: [LEFT/RIGHT/UP/DOWN]"""
 
         try:
             response = self.client.messages.create(
-                model="claude-sonnet-4-20250514",
+                model="claude-sonnet-4-5-20250929",
                 max_tokens=16000,
                 temperature=0.1,
                 messages=[{"role": "user", "content": prompt}],
@@ -168,7 +137,6 @@ MOVE: [LEFT/RIGHT/UP/DOWN]"""
         try:
             self.board = move(self.board, move_direction)
             self.move_count += 1
-            self.score = self.calculate_score(self.board)
             return True
         except IllegalMove:
             return False
@@ -182,7 +150,6 @@ MOVE: [LEFT/RIGHT/UP/DOWN]"""
         if show_board:
             print("Starting new 2048 game with AI agent...")
             print_board(self.board)
-            print(f"Score: {self.score}")
             print("-" * 50)
 
         while self.move_count < max_moves:
@@ -204,18 +171,16 @@ MOVE: [LEFT/RIGHT/UP/DOWN]"""
 
             if show_board:
                 print_board(self.board)
-                print(f"Move #{self.move_count}, Score: {self.score}")
+                print(f"Move #{self.move_count}, Highest tile: {np.max(self.board)}")
                 print("-" * 50)
                 time.sleep(delay)
 
         if show_board:
             print(f"Game finished after {self.move_count} moves!")
-            print(f"Final score: {self.score}")
             print(f"Highest tile: {np.max(self.board)}")
 
         return {
             "moves": self.move_count,
-            "score": self.score,
             "highest_tile": int(np.max(self.board)),
             "final_board": self.board.copy(),
         }
@@ -233,7 +198,6 @@ def main():
         print("GAME SUMMARY")
         print("=" * 50)
         print(f"Total moves: {result['moves']}")
-        print(f"Final score: {result['score']}")
         print(f"Highest tile achieved: {result['highest_tile']}")
 
     except ValueError as e:
